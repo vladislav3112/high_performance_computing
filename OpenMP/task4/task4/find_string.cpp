@@ -8,11 +8,47 @@ using namespace std;
 
 static const int NUM_THREADS = 4;
 const string FILE_NAME = "test.txt";
-const string searched_str = "but";
+const string searched_str = "pretty well";
 
 
-//overrided parallel find 
+int bruteforce_find(const string &T, const string &P)
+{
+	int n = T.length();
+	int m = P.length();
 
+	for (int i = 0; i < n - m + 1; i++) {
+		int j = 0;
+		while (j < m && T[i + j] == P[j]) {
+			++j;
+		}
+		if (j == m) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+int omp_bruteforce_find(const string &T, const string &P)
+{
+	int return_number = -1;
+
+	int n = T.length();
+	int m = P.length();
+
+	#pragma omp parallel for
+	for (int i = 0; i < n - m + 1; i++) {
+		int j = 0;
+		while (j < m && T[i + j] == P[j]) {
+			++j;
+		}
+		if (j == m) { 
+			return_number = i;
+			//break;
+		}
+	}
+
+	return return_number;
+}
 int main() {
 	ifstream myfile;
 	myfile.open(FILE_NAME);
@@ -26,7 +62,7 @@ double t1 = omp_get_wtime();
 while (getline(myfile, line)) 
 	{ 
 		curLine++;
-		if (line.find(searched_str, 0) != string::npos) 
+		if (bruteforce_find(line, searched_str) != string::npos)
 		{
 			matches_counter++;
 			//alternative:
@@ -44,14 +80,20 @@ while (getline(myfile, line))
 	myfile.seekg(0);
 	
 	t1 = omp_get_wtime();
-	#pragma omp parallel for private(line)
-	for (int curLine = 0; curLine < lines_num; curLine++) {
-		getline(myfile, line);
-		if (line.find(searched_str) != string::npos) matches_counter_parallel++;
-		//alternative:
-		//cout<< "string: " << searched_str << " found on line: " << curLine << endl;
+
+	int currLine = 0;
+
+
+	while (getline(myfile, line))
+	{
+		curLine++;
+		if (omp_bruteforce_find(line, searched_str) != string::npos)
+		{
+			matches_counter_parallel++;
+			//alternative:
+			//cout<< "string: " << searched_str << " found on line: " << curLine << endl;
+		}
 	}
-	
 	t2 = omp_get_wtime();
 	cout << "sequence work time:" << t << endl;
 	cout << "parallel work time: " << (t2 - t1) << endl;
